@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-import { Call } from '@azure/communication-calling';
+import { ParticipantRole } from '@azure/communication-calling';
 import {
   CommunicationIdentifier,
   CommunicationTokenCredential,
@@ -19,11 +19,42 @@ export const navigateToHomePage = (): void => {
 
 export const WEB_APP_TITLE = document.title;
 
+export const createRoom = async (): Promise<string> => {
+  const requestOptions = {
+    method: 'POST'
+  };
+  const response = await fetch(`/api/createRoom`, requestOptions);
+  if (!response.ok) {
+    throw 'Unable to create room';
+  }
+
+  const body = await response.json();
+  return body['id'];
+};
+
+const addUserToRoom = async (userId: string, roomId: string, role: ParticipantRole): Promise<void> => {
+  const requestOptions = {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ userId: userId, roomId: roomId, role: role })
+  };
+  const response = await fetch('/api/addUserToRoom', requestOptions);
+  if (!response.ok) {
+    throw 'Unable to add user to room';
+  }
+};
+
 export const placeCall = async (callDetails: {
   userId: CommunicationUserIdentifier;
   token: CommunicationTokenCredential;
   displayName: string;
+  roomId: string;
+  role: ParticipantRole;
 }): Promise<CallAdapter> => {
+  await addUserToRoom(callDetails.userId.communicationUserId, callDetails.roomId, callDetails.role);
+
   const callClient = createStatefulCallClient({
     userId: callDetails.userId
   });
@@ -32,15 +63,10 @@ export const placeCall = async (callDetails: {
     displayName: callDetails.displayName
   });
 
-  const awaitCallPromise = new Promise<Call>((resolve) => {
-    console.log('Listening for incoming calls');
-    callAgent.on('incomingCall', async (ev) => {
-      const call = await ev.incomingCall.accept();
-      resolve(call);
-    });
-  });
+  const callLocator = { roomId: callDetails.roomId };
 
-  const adapter = await createAzureCommunicationCallAdapterFromClient(callClient, callAgent, []);
+  const adapter = await createAzureCommunicationCallAdapterFromClient(callClient, callAgent, callLocator);
+  adapter.joinCall();
 
   const response = await fetch('/api/startCallWithTranscription', {
     method: 'POST',
@@ -48,20 +74,13 @@ export const placeCall = async (callDetails: {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      targetCallIds: [callDetails.userId]
+      roomId: callDetails.roomId
     })
   });
 
   if (!response.ok) {
     throw new Error('Failed to start call with transcription');
   }
-
-  const call = await awaitCallPromise;
-
-  // TODO: remove this once `@azure/communication-react` supports creating an adapter with an existing call
-  adapter.startCall([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (window as any).cachedCallId = call.id;
 
   return adapter;
 };

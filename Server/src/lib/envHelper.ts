@@ -26,5 +26,4 @@ export const getCognitionAPIEndpoint = (): string => throwIfUnset('CognitionAPIE
 export const getServerHttpUrl = (): string => throwIfUnset('ServerHttpUrl');
 export const getServerWebSocketPort = (): number => Number(throwIfUnset('ServerWebSocketPort'));
 export const getServerWebSocketUrl = (): string => throwIfUnset('ServerWebSocketUrl');
-
-export const getCallAutomationCallbackUrl = (): string => getServerHttpUrl() + '/api/callAutomationCallback';
+export const getCallAutomationCallbackUrl = (): string => getServerHttpUrl() + '/api/callAutomationEvent';

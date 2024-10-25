@@ -15,6 +15,8 @@ import summarizeTranscript from './routes/summarizeTranscript';
 import startTranscription from './routes/startTranscription';
 import fetchTranscript from './routes/fetchTranscript';
 import startCallWithTranscription from './routes/startCallWithTranscription';
+import createRoom from './routes/createRoom';
+import addUserToRoom from './routes/addUserToRoom';
 import { handleTranscriptionEvent } from './lib/callAutomationUtils';
 import { getServerWebSocketPort } from './lib/envHelper';
 
@@ -65,6 +67,18 @@ app.use('/api/startCallWithTranscription', cors(), startCallWithTranscription);
 app.use('/api/callAutomationEvent', cors(), (req, res) => {
   console.log('/automationEvent received', req.body);
 });
+
+/**
+ * route: /createRoom
+ * purpose: Calling: create a new room
+ */
+app.use('/api/createRoom', cors(), createRoom);
+
+/**
+ * route: /addUserToRoom
+ * purpose: Calling: add user to room with the given role
+ */
+app.use('/api/addUserToRoom', cors(), addUserToRoom);
 
 /**
  * route: wss://<host>/

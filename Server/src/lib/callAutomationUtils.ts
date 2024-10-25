@@ -3,6 +3,7 @@
 
 import {
   CallAutomationClient,
+  CallLocator,
   streamingData,
   TranscriptionData,
   TranscriptionMetadata
@@ -13,7 +14,6 @@ import {
   getCognitionAPIEndpoint,
   getResourceConnectionString
 } from './envHelper';
-import { CommunicationIdentifier } from '@azure/communication-common';
 import { ConversationSummaryInput } from './summarizationHelper';
 
 // lazy init to allow mocks in test
@@ -21,7 +21,7 @@ let callAutomationClient: CallAutomationClient | undefined = undefined;
 const getCallAutomationClient = (): CallAutomationClient =>
   callAutomationClient ?? (callAutomationClient = new CallAutomationClient(getResourceConnectionString()));
 
-export const startGroupCallWithTranscription = async (targetCalleeIds: CommunicationIdentifier[]): Promise<void> => {
+export const connectRoomsCallWithTranscription = async (roomId: string): Promise<void> => {
   const transcriptionOptions = {
     transportUrl: getServerWebSocketUrl(),
     transportType: 'websocket',
@@ -39,19 +39,14 @@ export const startGroupCallWithTranscription = async (targetCalleeIds: Communica
   const callbackUri = getCallAutomationCallbackUrl();
 
   const automationClient = getCallAutomationClient();
-  await automationClient.createGroupCall(
-    [
-      ...targetCalleeIds,
-      // Dummy user to call - switch to echo bot
-      { communicationUserId: '8:acs:dd9753c0-6e62-4f74-ab0f-c94f9723b4eb_00000022-5ed5-e7d5-b8ba-a43a0d002fae' }
-    ],
-    callbackUri,
-    options
-  );
+  const roomsLocator: CallLocator = { kind: 'roomCallLocator', id: roomId };
+  await automationClient.connectCall(roomsLocator, callbackUri, options);
 };
 
 /**
  * IMPORTANT: Does not work as StartTranscription is not supported for connection created with Connect interface.
+ *
+ * This should work once Rooms is supported and can replace `connectRoomsCallWithTranscription`.
  */
 export const startTranscriptionForCall = async (callConnectionId: string): Promise<void> => {
   console.log('Starting transcription for call:', callConnectionId);

@@ -62,7 +62,7 @@ export const CallScreen = (props: CallScreenProps): JSX.Element => {
     console.log('Pulling transcription from server...');
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const callId = (window as any).cachedCallId; //props.adapter.getState().call?.id;
+    const callId = props.adapter.getState().call?.id;
     if (!callId) {
       console.error('Call ID not found');
       return;
@@ -70,7 +70,7 @@ export const CallScreen = (props: CallScreenProps): JSX.Element => {
 
     const transcript = await fetchTranscript(callId);
     console.log('Transcript', transcript);
-  }, []);
+  }, [props.adapter]);
 
   const getCallSummaryFromServer = async (): Promise<void> => {
     console.log('Getting summary from server...');
@@ -80,7 +80,7 @@ export const CallScreen = (props: CallScreenProps): JSX.Element => {
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const callId = (window as any).cachedCallId; //props.adapter.getState().call?.id;
+      const callId = props.adapter.getState().call?.id;
       if (!callId) {
         console.error('Call ID not found');
         throw new Error('Call ID not found');

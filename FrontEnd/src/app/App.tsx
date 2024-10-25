@@ -5,7 +5,7 @@ import { CommunicationUserIdentifier } from '@azure/communication-common';
 import { setLogLevel } from '@azure/logger';
 import { initializeIcons, Spinner } from '@fluentui/react';
 import React, { useEffect, useState } from 'react';
-import { navigateToHomePage, placeCall, WEB_APP_TITLE } from './utils/AppUtils';
+import { createRoom, navigateToHomePage, placeCall, WEB_APP_TITLE } from './utils/AppUtils';
 import { CallError } from './views/CallError';
 import { CallScreen } from './views/CallScreen';
 import { HomeScreen } from './views/HomeScreen';
@@ -59,12 +59,17 @@ const App = (): JSX.Element => {
 
             const credential = createAutoRefreshingCredential(toFlatCommunicationIdentifier(userId), token);
 
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomId = urlParams.get('roomId') ?? (await createRoom());
             const adapter = await placeCall({
               userId: userId,
               token: credential,
-              displayName: callDetails.displayName
+              displayName: callDetails.displayName,
+              roomId: roomId,
+              role: 'Presenter'
             });
 
+            window.history.pushState({}, '', `?roomId=${roomId}`);
             setAdapter(adapter);
           }}
         />

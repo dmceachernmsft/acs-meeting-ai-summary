@@ -15,7 +15,7 @@ interface FetchTranscriptResponse {
 
 router.post('/', async function (req, res, next) {
   const { callId }: FetchTranscriptRequest = req.body;
-  console.log('Fetching transcript for call:', callId, 'avilable calls:', Object.keys(TRANSCRIPTION_STORE));
+  console.log('Fetching transcript for call:', callId, 'available calls:', Object.keys(TRANSCRIPTION_STORE));
 
   if (!TRANSCRIPTION_STORE[callId]) {
     res.status(404).send('Transcription not found');

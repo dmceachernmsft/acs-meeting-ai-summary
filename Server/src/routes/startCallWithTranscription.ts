@@ -2,18 +2,17 @@
 // Licensed under the MIT License.
 
 import * as express from 'express';
-import { startGroupCallWithTranscription } from '../lib/callAutomationUtils';
-import { CommunicationIdentifier } from '@azure/communication-common';
+import { connectRoomsCallWithTranscription } from '../lib/callAutomationUtils';
 
 const router = express.Router();
 interface StartCallWithTranscriptionRequest {
-  targetCallIds: CommunicationIdentifier[];
+  roomId: string;
 }
 
 router.post('/', async function (req, res, next) {
-  const { targetCallIds }: StartCallWithTranscriptionRequest = req.body;
+  const { roomId }: StartCallWithTranscriptionRequest = req.body;
   try {
-    await startGroupCallWithTranscription(targetCallIds);
+    await connectRoomsCallWithTranscription(roomId);
   } catch (e) {
     console.error('Error starting call with transcription:', e);
     res.status(500).send('Error starting call');
