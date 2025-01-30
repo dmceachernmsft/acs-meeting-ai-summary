@@ -49,6 +49,12 @@ export const connectRoomsCallWithTranscription = async (roomId: string): Promise
   startTranscriptionForCall((await connectedCallResult.callConnection.getCallConnectionProperties()).serverCallId);
 };
 
+/**
+ * This is how we attach call automation to the call. We want to not start transcription here. but
+ * will start it later when the call connects.
+ * @param serverCallId - this can be fetched from the client call object with the handler in the '
+ * Call info object.
+ */
 export const connectRoomsCall = async (serverCallId: string): Promise<void> => {
   const transcriptionOptions = {
     transportUrl: getServerWebSocketUrl(),
@@ -98,6 +104,10 @@ export interface CallTranscription {
 
 // TODO: move to a resilient storage
 export const TRANSCRIPTION_STORE: { [key: string]: Partial<CallTranscription> } = {};
+/**
+ * Used to map between the call connection id and the correlation id from both transcription and
+ * call automation events.
+ */
 export const CALLCONNECTION_ID_TO_CORRELATION_ID: { [key: string]: { correlationId?: string; callId?: string } } = {};
 
 export const getTranscriptionData = (callId: string): CallTranscription | undefined => {
