@@ -4,8 +4,8 @@
 import { CommunicationUserIdentifier } from '@azure/communication-common';
 import { CallAdapter, CallComposite } from '@azure/communication-react';
 
-import type { CallAdapterState, CallCompositeOptions, CaptionsInfo } from '@azure/communication-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import type { CallAdapterState, CallCompositeOptions } from '@azure/communication-react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { PrimaryButton, Spinner, Stack, Text } from '@fluentui/react';
 import { useIsMobile } from '../utils/useIsMobile';
 import { useSwitchableFluentTheme } from '../theming/SwitchableFluentThemeProvider';
@@ -43,6 +43,7 @@ const callCompositeOptions: CallCompositeOptions = {
 export const CallScreen = (props: CallScreenProps): JSX.Element => {
   const [summarizationStatus, setSummarizationStatus] = useState<'None' | 'InProgress' | 'Complete'>('None');
   const [summary, setSummary] = useState<SummarizeResult>();
+  const [callAutomationStarted, setCallAutomationStarted] = useState(false);
 
   const [callConnected, setCallConnected] = useState(props.adapter.getState().call?.state === 'Connected');
   useEffect(() => {
@@ -57,6 +58,31 @@ export const CallScreen = (props: CallScreenProps): JSX.Element => {
 
   const isMobileSession = useIsMobile();
   const { currentTheme, currentRtl } = useSwitchableFluentTheme();
+
+  useEffect(() => {
+    if (callConnected) {
+      const onStateChange = async (state: CallAdapterState): Promise<void> => {
+        if (state.call?.info !== undefined && state.call?.state === 'Connected' && callAutomationStarted === false) {
+          const serverCallID = await state.call.info.getServerCallId();
+          const response = await fetch('/api/connectRoomsCall', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              serverCallId: serverCallID
+            })
+          });
+          if (!response.ok) {
+            throw new Error('Failed to start call with transcription');
+          } else {
+            setCallAutomationStarted(true);
+          }
+        }
+      };
+      onStateChange(props.adapter.getState());
+    }
+  }, [callAutomationStarted, callConnected, props.adapter]);
 
   const pullTranscriptionFromServer = useCallback(async () => {
     console.log('Pulling transcription from server...');

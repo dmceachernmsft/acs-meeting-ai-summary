@@ -4,7 +4,7 @@
 import { getLanguageAPIKey } from './envHelper';
 
 const API_URL =
-  'https://ui-library-ai-language-services-test-resource.cognitiveservices.azure.com/language/analyze-conversations/jobs?api-version=2023-11-15-preview';
+  'https://acs-ui-transcription-cog.cognitiveservices.azure.com/language/analyze-conversations/jobs?api-version=2023-11-15-preview';
 
 const apiHeaders = (): HeadersInit => ({
   'Content-Type': 'application/json',

@@ -11,6 +11,7 @@ interface StartTranscriptionRequest {
 
 router.post('/', async function (req, res, next) {
   const { callConnectionId }: StartTranscriptionRequest = req.body;
+  console.log('Starting transcription for call:', callConnectionId);
   try {
     await startTranscriptionForCall(callConnectionId);
   } catch (e) {

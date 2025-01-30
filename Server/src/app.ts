@@ -17,7 +17,12 @@ import fetchTranscript from './routes/fetchTranscript';
 import startCallWithTranscription from './routes/startCallWithTranscription';
 import createRoom from './routes/createRoom';
 import addUserToRoom from './routes/addUserToRoom';
-import { handleTranscriptionEvent } from './lib/callAutomationUtils';
+import connectRoomsCall from './routes/connectToRoomsCall';
+import {
+  CALLCONNECTION_ID_TO_CORRELATION_ID,
+  handleTranscriptionEvent,
+  startTranscriptionForCall
+} from './lib/callAutomationUtils';
 import { getServerWebSocketPort } from './lib/envHelper';
 
 const app = express();
@@ -66,6 +71,13 @@ app.use('/api/startCallWithTranscription', cors(), startCallWithTranscription);
 
 app.use('/api/callAutomationEvent', cors(), (req, res) => {
   console.log('/automationEvent received', req.body);
+  if (req.body[0].type === 'Microsoft.Communication.CallConnected') {
+    startTranscriptionForCall(req.body[0].data.callConnectionId);
+    CALLCONNECTION_ID_TO_CORRELATION_ID[req.body[0].data.callConnectionId] = {
+      callId: req.body[0].data.correlationId,
+      correlationId: CALLCONNECTION_ID_TO_CORRELATION_ID[req.body[0].data.callConnectionId]?.correlationId
+    };
+  }
 });
 
 /**
@@ -73,6 +85,12 @@ app.use('/api/callAutomationEvent', cors(), (req, res) => {
  * purpose: Calling: create a new room
  */
 app.use('/api/createRoom', cors(), createRoom);
+
+/**
+ * route: /connectToRoom
+ * purpose: Calling: connect to an existing room
+ */
+app.use('/api/connectRoomsCall', cors(), connectRoomsCall);
 
 /**
  * route: /addUserToRoom

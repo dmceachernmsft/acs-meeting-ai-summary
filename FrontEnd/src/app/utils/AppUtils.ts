@@ -9,6 +9,7 @@ import {
 } from '@azure/communication-common';
 import {
   CallAdapter,
+  CallAdapterState,
   createAzureCommunicationCallAdapterFromClient,
   createStatefulCallClient
 } from '@azure/communication-react';
@@ -67,20 +68,6 @@ export const placeCall = async (callDetails: {
 
   const adapter = await createAzureCommunicationCallAdapterFromClient(callClient, callAgent, callLocator);
   adapter.joinCall();
-
-  const response = await fetch('/api/startCallWithTranscription', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      roomId: callDetails.roomId
-    })
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to start call with transcription');
-  }
 
   return adapter;
 };

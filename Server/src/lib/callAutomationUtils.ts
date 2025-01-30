@@ -4,7 +4,7 @@
 import {
   CallAutomationClient,
   CallLocator,
-  streamingData,
+  StreamingData,
   TranscriptionData,
   TranscriptionMetadata
 } from '@azure/communication-call-automation';
@@ -18,7 +18,7 @@ import { ConversationSummaryInput } from './summarizationHelper';
 
 // lazy init to allow mocks in test
 let callAutomationClient: CallAutomationClient | undefined = undefined;
-const getCallAutomationClient = (): CallAutomationClient =>
+export const getCallAutomationClient = (): CallAutomationClient =>
   callAutomationClient ?? (callAutomationClient = new CallAutomationClient(getResourceConnectionString()));
 
 export const connectRoomsCallWithTranscription = async (roomId: string): Promise<void> => {
@@ -38,27 +38,56 @@ export const connectRoomsCallWithTranscription = async (roomId: string): Promise
 
   const callbackUri = getCallAutomationCallbackUrl();
 
+  /**
+   * Call automation needs to create the call.
+   */
+
   const automationClient = getCallAutomationClient();
   const roomsLocator: CallLocator = { kind: 'roomCallLocator', id: roomId };
-  await automationClient.connectCall(roomsLocator, callbackUri, options);
+  const connectedCallResult = await automationClient.connectCall(roomsLocator, callbackUri, options);
+  console.log((await connectedCallResult.callConnection.getCallConnectionProperties()).serverCallId);
+  startTranscriptionForCall((await connectedCallResult.callConnection.getCallConnectionProperties()).serverCallId);
+};
+
+export const connectRoomsCall = async (serverCallId: string): Promise<void> => {
+  const transcriptionOptions = {
+    transportUrl: getServerWebSocketUrl(),
+    transportType: 'websocket',
+    locale: 'en-US',
+    startTranscription: false
+  };
+  const options = {
+    callIntelligenceOptions: {
+      cognitiveServicesEndpoint: getCognitionAPIEndpoint()
+    },
+    transcriptionOptions: transcriptionOptions
+  };
+  const res = await getCallAutomationClient().connectCall(
+    {
+      kind: 'serverCallLocator',
+      id: serverCallId
+    },
+    getCallAutomationCallbackUrl(),
+    options
+  );
+  console.log('Connect call result', res);
+  const callConnection = res.callConnection;
+  console.log('Call connection', callConnection);
+  CALLCONNECTION_ID_TO_CORRELATION_ID[(await callConnection.getCallConnectionProperties()).callConnectionId] = {
+    correlationId: (await callConnection.getCallConnectionProperties()).correlationId
+  };
 };
 
 /**
  * IMPORTANT: Does not work as StartTranscription is not supported for connection created with Connect interface.
  *
  * This should work once Rooms is supported and can replace `connectRoomsCallWithTranscription`.
+ * This should be the correlation id for the Rooms call and the transcription data.
  */
 export const startTranscriptionForCall = async (callConnectionId: string): Promise<void> => {
   console.log('Starting transcription for call:', callConnectionId);
-  const res = await getCallAutomationClient().connectCall(
-    {
-      kind: 'serverCallLocator',
-      id: callConnectionId
-    },
-    '<REPLACE_WITH_CALLBACK_URI>'
-  );
-  console.log('Connect call result', res);
-  const callConnection = res.callConnection;
+  const callConnection = await getCallAutomationClient().getCallConnection(callConnectionId);
+
   return await callConnection.getCallMedia().startTranscription();
 };
 
@@ -69,9 +98,14 @@ export interface CallTranscription {
 
 // TODO: move to a resilient storage
 export const TRANSCRIPTION_STORE: { [key: string]: Partial<CallTranscription> } = {};
+export const CALLCONNECTION_ID_TO_CORRELATION_ID: { [key: string]: { correlationId?: string; callId?: string } } = {};
 
 export const getTranscriptionData = (callId: string): CallTranscription | undefined => {
-  return TRANSCRIPTION_STORE[callId] as CallTranscription;
+  const connectionId = Object.keys(CALLCONNECTION_ID_TO_CORRELATION_ID).find(
+    (key) => CALLCONNECTION_ID_TO_CORRELATION_ID[key].callId === callId
+  );
+  const correlationId = CALLCONNECTION_ID_TO_CORRELATION_ID[connectionId]?.correlationId;
+  return TRANSCRIPTION_STORE[correlationId] as CallTranscription;
 };
 
 /**
@@ -81,7 +115,7 @@ export const handleTranscriptionEvent = (packetData: unknown, packetId: string |
   const decoder = new TextDecoder();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const stringJson = decoder.decode(packetData as any);
-  const parsedData = streamingData(stringJson);
+  const parsedData = StreamingData.parse(stringJson);
 
   if ('locale' in parsedData) {
     const id = handleTranscriptionMetadataEvent(parsedData);
