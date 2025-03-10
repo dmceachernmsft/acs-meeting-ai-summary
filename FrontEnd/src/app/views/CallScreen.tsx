@@ -9,7 +9,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { PrimaryButton, Spinner, Stack, Text } from '@fluentui/react';
 import { useIsMobile } from '../utils/useIsMobile';
 import { useSwitchableFluentTheme } from '../theming/SwitchableFluentThemeProvider';
-import { fetchTranscript } from '../utils/AppUtils';
+import { CallTranscription, fetchTranscript } from '../utils/AppUtils';
+import { TranscriptionPane } from '../components/TranscriptionPane';
 
 export interface CallScreenProps {
   userId: CommunicationUserIdentifier;
@@ -44,6 +45,7 @@ export const CallScreen = (props: CallScreenProps): JSX.Element => {
   const [summarizationStatus, setSummarizationStatus] = useState<'None' | 'InProgress' | 'Complete'>('None');
   const [summary, setSummary] = useState<SummarizeResult>();
   const [callAutomationStarted, setCallAutomationStarted] = useState(false);
+  const [transcription, setTranscription] = useState<CallTranscription>([]);
 
   const [callConnected, setCallConnected] = useState(props.adapter.getState().call?.state === 'Connected');
   useEffect(() => {
@@ -51,6 +53,7 @@ export const CallScreen = (props: CallScreenProps): JSX.Element => {
       setCallConnected(state.call?.state === 'Connected');
     };
     props.adapter.onStateChange(onStateChange);
+
     return () => {
       props.adapter.offStateChange(onStateChange);
     };
@@ -95,10 +98,27 @@ export const CallScreen = (props: CallScreenProps): JSX.Element => {
     }
 
     const transcript = await fetchTranscript(callId);
+    setTranscription(transcript);
     console.log('Transcript', transcript);
   }, [props.adapter]);
 
-  const getCallSummaryFromServer = async (): Promise<void> => {
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    if (callConnected) {
+      intervalId = setInterval(() => {
+        pullTranscriptionFromServer();
+      }, 2000);
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [callConnected, pullTranscriptionFromServer]);
+
+  const getCallSummaryFromServer = useCallback(async (): Promise<void> => {
     console.log('Getting summary from server...');
 
     setSummary(undefined);
@@ -133,19 +153,34 @@ export const CallScreen = (props: CallScreenProps): JSX.Element => {
     } finally {
       setSummarizationStatus('Complete');
     }
-  };
+  }, [props.adapter]);
+
+  useEffect(() => {
+    props.adapter.on('callEnded', () => {
+      getCallSummaryFromServer();
+    });
+  }, [props.adapter, getCallSummaryFromServer]);
 
   return (
     <Stack verticalFill>
-      <Stack.Item styles={{ root: { minHeight: '40rem', width: '70vw', minWidth: '30rem', margin: '0 auto' } }}>
-        <CallComposite
-          adapter={props.adapter}
-          fluentTheme={currentTheme.theme}
-          rtl={currentRtl}
-          formFactor={isMobileSession ? 'mobile' : 'desktop'}
-          options={callCompositeOptions}
-        />
-      </Stack.Item>
+      <Stack horizontal>
+        <Stack.Item styles={{ root: { minHeight: '40rem', width: '70vw', minWidth: '30rem', margin: '0 auto' } }}>
+          <CallComposite
+            adapter={props.adapter}
+            fluentTheme={currentTheme.theme}
+            rtl={currentRtl}
+            formFactor={isMobileSession ? 'mobile' : 'desktop'}
+            options={callCompositeOptions}
+          />
+        </Stack.Item>
+        <Stack.Item>
+          <TranscriptionPane
+            participants={props.adapter.getState().call?.remoteParticipants}
+            transcript={transcription}
+          ></TranscriptionPane>
+        </Stack.Item>
+      </Stack>
+
       <Stack.Item styles={{ root: { maxHeight: '30rem', overflow: 'auto', margin: '2rem', maxWidth: '70rem' } }}>
         {callConnected && (
           <Stack horizontal tokens={{ childrenGap: '1rem' }}>

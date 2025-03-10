@@ -72,14 +72,16 @@ export const placeCall = async (callDetails: {
   return adapter;
 };
 
-export type CallTranscription = Array<{
+export type CallTranscription = Array<TranscriptionSentence>;
+
+export type TranscriptionSentence = {
   text: string;
   confidence: number;
   offsetInTicks: number;
   durationInTicks: number;
   participant: CommunicationIdentifier;
   resultState: 'intermediate' | 'final';
-}>;
+};
 
 export const fetchTranscript = async (callId: string): Promise<CallTranscription> => {
   const response = await fetch(`/api/fetchTranscript`, {
